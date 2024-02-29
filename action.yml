@@ -1,0 +1,26 @@
+name: "StackHawk Github Issue Manager"
+description: "Github Issue Manager for StackHawk's HawkScan findings"
+author: "dillonstreator"
+
+inputs:
+  stackHawkApiKey:
+    required: true
+  stackHawkScanId:
+    required: true
+  stackHawkApiBaseUrl:
+    required: false
+    default: https://api.stackhawk.com/api/v1
+  stackHawkIssueLabel:
+    required: false
+    default: 'vulnerability'
+  githubToken:
+    required: true
+    description: "Github Personal Access Token with read & write access to issues"
+  autoCloseRemediated:
+    required: false
+    default: false
+    description: "Automatically close issues that are no longer present in the HawkScan findings"
+
+runs:
+  using: node20
+  main: dist/index.js

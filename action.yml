@@ -1,0 +1,28 @@
+name: "StackHawk Github Issue Manager"
+description: "Github Issue Manager for StackHawk's HawkScan findings"
+author: "dillonstreator"
+
+inputs:
+  stackhawk_api_key:
+    required: true
+  stackhawk_scan_id:
+    required: true
+  github_issue_label_static:
+    required: false
+    default: 'hawkscan'
+    description: "Static label to apply to the issues created by this action. It is used to find existing issues."
+  github_issue_label_severity_prefix:
+    required: false
+    default: 'severity-'
+    description: "Prefix for the severity labels."
+  github_token:
+    required: true
+    description: "Github Personal Access Token with read & write access to issues."
+  auto_close_remediated:
+    required: false
+    default: false
+    description: "Automatically close issues that are no longer present in the HawkScan findings."
+
+runs:
+  using: node20
+  main: dist/index.js

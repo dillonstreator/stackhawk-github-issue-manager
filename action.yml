@@ -1,6 +1,10 @@
 name: "StackHawk Github Issue Manager"
-description: "Github Issue Manager for StackHawk's HawkScan findings"
+description: "A Github Issue Manager for StackHawk's HawkScan alerts"
 author: "dillonstreator"
+
+branding:
+  icon: "shield"
+  color: "green"
 
 inputs:
   stackhawk_api_key:

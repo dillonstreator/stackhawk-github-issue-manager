@@ -3,7 +3,7 @@ description: "A Github Issue Manager for StackHawk's HawkScan alerts"
 author: "dillonstreator"
 
 branding:
-  icon: "shield"
+  icon: "octagon"
   color: "green"
 
 inputs:

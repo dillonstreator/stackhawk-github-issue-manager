@@ -29025,19 +29025,23 @@ const run = async (input) => {
         labels: input.githubIssueLabelStatic
     })).filter(issue => !issue.pull_request);
     console.log(`Found ${issues.length} existing issues labelled \`${input.githubIssueLabelStatic}\``);
-    const existingIssuesMap = new Map();
+    const persistentIssuesMap = new Map();
     for (const alert of alerts) {
         const issuePrefix = `${alert.pluginId}.${alert.cweId}`;
         const issueTitle = `${issuePrefix}: ${alert.name}`;
+        const alertDetails = await getAlert(bearerToken, input.stackhawkScanId, alert.pluginId);
+        const alertTriagedOnAllPaths = alertDetails.applicationScanAlertUris.every(uri => uri.status !== 'UNKNOWN');
         const issueContext = {
             owner: input.githubOwner,
             repo: input.githubRepo,
             title: issueTitle,
-            body: `${STACK_HAWK_APP_BASE_URL}/scans/${scan.scan.id}\n\n${alert.description}`
+            body: buildIssueBody(alertDetails)
         };
         const existingIssue = issues.find(issue => issue.title.startsWith(issuePrefix));
         if (existingIssue) {
-            existingIssuesMap.set(existingIssue.number, 1);
+            if (!alertTriagedOnAllPaths) {
+                persistentIssuesMap.set(existingIssue.number, 1);
+            }
             console.log(`Updating existing issue #${existingIssue.number}`);
             await octokit.rest.issues.update({
                 ...issueContext,
@@ -29045,6 +29049,9 @@ const run = async (input) => {
             });
         }
         else {
+            if (alertTriagedOnAllPaths) {
+                return;
+            }
             console.log(`Creating new issue`);
             await octokit.rest.issues.create({
                 ...issueContext,
@@ -29056,7 +29063,7 @@ const run = async (input) => {
         }
     }
     if (input.autoCloseRemediated) {
-        const remediatedIssues = issues.filter(issue => !existingIssuesMap.has(issue.number));
+        const remediatedIssues = issues.filter(issue => !persistentIssuesMap.has(issue.number));
         console.log(`Found ${remediatedIssues.length} remediated issues`);
         for (const issue of remediatedIssues) {
             console.log(`Closing remediated issue #${issue.number}`);
@@ -29093,6 +29100,26 @@ const getScan = async (bearerToken, scanId) => {
         throw new Error(`Failed to fetch scan results: ${res.status} ${res.statusText}`);
     }
     return (await res.json());
+};
+const getAlert = async (bearerToken, scanId, pluginId) => {
+    const res = await fetch(`${STACK_HAWK_API_BASE_URL}/scan/${scanId}/alert/${pluginId}`, {
+        headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${bearerToken}`
+        }
+    });
+    if (!res.ok) {
+        throw new Error(`Failed to fetch alert: ${res.status} ${res.statusText}`);
+    }
+    return (await res.json());
+};
+const buildIssueBody = (alertDetails) => {
+    const paths = alertDetails.applicationScanAlertUris
+        .map(alert => {
+        return `- \`${alert.requestMethod}\` ${alert.uri ?? '/'} (${alert.status})`;
+    })
+        .join('\n');
+    return `${STACK_HAWK_APP_BASE_URL}/scans/${alertDetails.alert.scan.id}\n${paths}\n${alertDetails.alert.description}`;
 };
 
 

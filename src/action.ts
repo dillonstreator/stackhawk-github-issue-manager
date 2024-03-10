@@ -38,30 +38,46 @@ export const run = async (input: Input): Promise<void> => {
     `Found ${issues.length} existing issues labelled \`${input.githubIssueLabelStatic}\``
   )
 
-  const existingIssuesMap = new Map<number, unknown>()
+  const persistentIssuesMap = new Map<number, unknown>()
 
   for (const alert of alerts) {
     const issuePrefix = `${alert.pluginId}.${alert.cweId}`
     const issueTitle = `${issuePrefix}: ${alert.name}`
 
+    const alertDetails = await getAlert(
+      bearerToken,
+      input.stackhawkScanId,
+      alert.pluginId
+    )
+    const alertTriagedOnAllPaths = alertDetails.applicationScanAlertUris.every(
+      uri => uri.status !== 'UNKNOWN'
+    )
+
     const issueContext = {
       owner: input.githubOwner,
       repo: input.githubRepo,
       title: issueTitle,
-      body: `${STACK_HAWK_APP_BASE_URL}/scans/${scan.scan.id}\n\n${alert.description}`
+      body: buildIssueBody(alertDetails)
     }
 
     const existingIssue = issues.find(issue =>
       issue.title.startsWith(issuePrefix)
     )
     if (existingIssue) {
-      existingIssuesMap.set(existingIssue.number, 1)
+      if (!alertTriagedOnAllPaths) {
+        persistentIssuesMap.set(existingIssue.number, 1)
+      }
+
       console.log(`Updating existing issue #${existingIssue.number}`)
       await octokit.rest.issues.update({
         ...issueContext,
         issue_number: existingIssue.number
       })
     } else {
+      if (alertTriagedOnAllPaths) {
+        return
+      }
+
       console.log(`Creating new issue`)
       await octokit.rest.issues.create({
         ...issueContext,
@@ -75,7 +91,7 @@ export const run = async (input: Input): Promise<void> => {
 
   if (input.autoCloseRemediated) {
     const remediatedIssues = issues.filter(
-      issue => !existingIssuesMap.has(issue.number)
+      issue => !persistentIssuesMap.has(issue.number)
     )
     console.log(`Found ${remediatedIssues.length} remediated issues`)
     for (const issue of remediatedIssues) {
@@ -125,7 +141,36 @@ const getScan = async (
   return (await res.json()) as HawkScanScanResult
 }
 
+const getAlert = async (
+  bearerToken: string,
+  scanId: string,
+  pluginId: string
+): Promise<HawkScanScanAlertResult> => {
+  const res = await fetch(
+    `${STACK_HAWK_API_BASE_URL}/scan/${scanId}/alert/${pluginId}`,
+    {
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${bearerToken}`
+      }
+    }
+  )
+  if (!res.ok) {
+    throw new Error(`Failed to fetch alert: ${res.status} ${res.statusText}`)
+  }
+
+  return (await res.json()) as HawkScanScanAlertResult
+}
+
+type HawkScanScan = {
+  id: string
+  applicationId: string
+  env: string
+  applicationName: string
+}
+
 type HawkScanAlert = {
+  scan: HawkScanScan
   pluginId: string
   name: string
   description: string
@@ -144,6 +189,29 @@ type HawkScanAlert = {
 type HawkScanScanResult = {
   applicationScanResults: {
     applicationAlerts: HawkScanAlert[]
-    scan: { id: string }
+    scan: HawkScanScan
   }[]
+}
+
+type HawkScanApplicationScanAlertUri = {
+  scan: HawkScanScan
+  pluginId: string
+  uri: string
+  requestMethod: string
+  status: string // "UNKNOWN" | "RISK_ACCEPTED" | other unknown values that are not documented
+  matchedRuleNote: string // the note of the status
+}
+
+type HawkScanScanAlertResult = {
+  alert: HawkScanAlert
+  applicationScanAlertUris: HawkScanApplicationScanAlertUri[]
+}
+
+const buildIssueBody = (alertDetails: HawkScanScanAlertResult): string => {
+  const paths = alertDetails.applicationScanAlertUris
+    .map(alert => {
+      return `- \`${alert.requestMethod}\` ${alert.uri ?? '/'} (${alert.status})`
+    })
+    .join('\n')
+  return `${STACK_HAWK_APP_BASE_URL}/scans/${alertDetails.alert.scan.id}\n${paths}\n${alertDetails.alert.description}`
 }

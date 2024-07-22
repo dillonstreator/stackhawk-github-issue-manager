@@ -1,7 +1,7 @@
 {
   "name": "stackhawk-github-issue-manager",
   "description": "Github Issue Manager for StackHawk's HawkScan findings",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "author": "dillonstreator",
   "homepage": "https://github.com/dillonstreator/stackhawk-github-issue-manager",
   "repository": {

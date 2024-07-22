@@ -38,7 +38,7 @@ jobs:
       group: stackhawk-github-issue-manager
       cancel-in-progress: false
     steps:
-      - uses: dillonstreator/stackhawk-github-issue-manager@v0.0.4
+      - uses: dillonstreator/stackhawk-github-issue-manager@v0.0.5
         with:
           stackhawk_api_key: ${{ secrets.HAWK_API_KEY }}
           stackhawk_scan_id: ${{ needs.hawkscan.outputs.scan_id }}

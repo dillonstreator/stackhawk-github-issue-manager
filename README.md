@@ -38,7 +38,7 @@ jobs:
       group: stackhawk-github-issue-manager
       cancel-in-progress: false
     steps:
-      - uses: dillonstreator/stackhawk-github-issue-manager@v0.0.5
+      - uses: dillonstreator/stackhawk-github-issue-manager@v0.0.6
         with:
           stackhawk_api_key: ${{ secrets.HAWK_API_KEY }}
           stackhawk_scan_id: ${{ needs.hawkscan.outputs.scan_id }}
@@ -46,5 +46,6 @@ jobs:
           github_issue_label_severity_prefix: 'severity-'
           github_token: ${{ github.token }}
           auto_close_remediated: true
+          minimum_severity: 'Medium'
 
 ```

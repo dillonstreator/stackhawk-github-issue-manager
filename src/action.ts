@@ -3,6 +3,14 @@ import * as github from '@actions/github'
 const STACK_HAWK_API_BASE_URL = 'https://api.stackhawk.com/api/v1'
 const STACK_HAWK_APP_BASE_URL = 'https://app.stackhawk.com'
 
+export type AlertSeverity = 'Low' | 'Medium' | 'High' | 'Critical'
+export const alertSeverityLevelMap: Record<AlertSeverity, number> = {
+  Low: 1,
+  Medium: 2,
+  High: 3,
+  Critical: 4
+}
+
 export type Input = {
   stackhawkApiKey: string
   stackhawkScanId: string
@@ -12,6 +20,7 @@ export type Input = {
   githubRepo: string
   githubToken: string
   autoCloseRemediated: boolean
+  minimumSeverity: AlertSeverity
 }
 
 export const run = async (input: Input): Promise<void> => {
@@ -42,6 +51,22 @@ export const run = async (input: Input): Promise<void> => {
 
   for (const alert of alerts) {
     const issuePrefix = `${alert.pluginId}.${alert.cweId}`
+    if (alert.severity && alertSeverityLevelMap[alert.severity] !== undefined) {
+      if (
+        alertSeverityLevelMap[alert.severity] <
+        alertSeverityLevelMap[input.minimumSeverity]
+      ) {
+        console.log(
+          `skipping ${alert.severity} severity alert ${issuePrefix} due to minimum severity configuration`
+        )
+        continue
+      }
+    } else {
+      console.log(
+        `unexpected alert severity '${alert.severity}' ${issuePrefix}`
+      )
+    }
+
     const issueTitle = `${issuePrefix}: ${alert.name}`
 
     const alertDetails = await getAlert(
@@ -174,7 +199,7 @@ type HawkScanAlert = {
   pluginId: string
   name: string
   description: string
-  severity: 'Low' | 'Medium' | 'High' | 'Critical'
+  severity: AlertSeverity
   references: string[]
   uriCount: number
   requestMethod: string

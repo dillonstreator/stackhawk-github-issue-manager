@@ -26,6 +26,10 @@ inputs:
     required: false
     default: false
     description: "Automatically close issues that are no longer present in the HawkScan findings."
+  minimum_severity:
+    required: false
+    default: 'Low'
+    description: "The minimum severity level to create github issues for"
 
 runs:
   using: node20

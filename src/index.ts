@@ -1,6 +1,14 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
-import { run, Input } from './action'
+import { run, Input, alertSeverityLevelMap, AlertSeverity } from './action'
+
+let minimumSeverity = (core.getInput('minimum_severity', {
+  required: false
+}) || 'Low') as AlertSeverity
+if (!alertSeverityLevelMap[minimumSeverity]) {
+  console.log(`unknown severity '${minimumSeverity}' - falling back to 'Low'`)
+  minimumSeverity = 'Low'
+}
 
 const input: Input = {
   stackhawkApiKey: core.getInput('stackhawk_api_key', { required: true }),
@@ -14,7 +22,8 @@ const input: Input = {
   githubOwner: github.context.repo.owner,
   githubRepo: github.context.repo.repo,
   githubToken: core.getInput('github_token', { required: true }),
-  autoCloseRemediated: core.getInput('auto_close_remediated') === 'true'
+  autoCloseRemediated: core.getInput('auto_close_remediated') === 'true',
+  minimumSeverity
 }
 
 run(input)

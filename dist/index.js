@@ -29220,10 +29220,16 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.run = void 0;
+exports.run = exports.alertSeverityLevelMap = void 0;
 const github = __importStar(__nccwpck_require__(5438));
 const STACK_HAWK_API_BASE_URL = 'https://api.stackhawk.com/api/v1';
 const STACK_HAWK_APP_BASE_URL = 'https://app.stackhawk.com';
+exports.alertSeverityLevelMap = {
+    Low: 1,
+    Medium: 2,
+    High: 3,
+    Critical: 4
+};
 const run = async (input) => {
     const octokit = github.getOctokit(input.githubToken);
     const bearerToken = await getBearerToken(input.stackhawkApiKey);
@@ -29243,6 +29249,16 @@ const run = async (input) => {
     const persistentIssuesMap = new Map();
     for (const alert of alerts) {
         const issuePrefix = `${alert.pluginId}.${alert.cweId}`;
+        if (alert.severity && exports.alertSeverityLevelMap[alert.severity] !== undefined) {
+            if (exports.alertSeverityLevelMap[alert.severity] <
+                exports.alertSeverityLevelMap[input.minimumSeverity]) {
+                console.log(`skipping ${alert.severity} severity alert ${issuePrefix} due to minimum severity configuration`);
+                continue;
+            }
+        }
+        else {
+            console.log(`unexpected alert severity '${alert.severity}' ${issuePrefix}`);
+        }
         const issueTitle = `${issuePrefix}: ${alert.name}`;
         const alertDetails = await getAlert(bearerToken, input.stackhawkScanId, alert.pluginId);
         const alertTriagedOnAllPaths = alertDetails.applicationScanAlertUris.every(uri => uri.status !== 'UNKNOWN');
@@ -29372,6 +29388,13 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(2186));
 const github = __importStar(__nccwpck_require__(5438));
 const action_1 = __nccwpck_require__(7672);
+let minimumSeverity = (core.getInput('minimum_severity', {
+    required: false
+}) || 'Low');
+if (!action_1.alertSeverityLevelMap[minimumSeverity]) {
+    console.log(`unknown severity '${minimumSeverity}' - falling back to 'Low'`);
+    minimumSeverity = 'Low';
+}
 const input = {
     stackhawkApiKey: core.getInput('stackhawk_api_key', { required: true }),
     stackhawkScanId: core.getInput('stackhawk_scan_id', { required: true }),
@@ -29382,7 +29405,8 @@ const input = {
     githubOwner: github.context.repo.owner,
     githubRepo: github.context.repo.repo,
     githubToken: core.getInput('github_token', { required: true }),
-    autoCloseRemediated: core.getInput('auto_close_remediated') === 'true'
+    autoCloseRemediated: core.getInput('auto_close_remediated') === 'true',
+    minimumSeverity
 };
 (0, action_1.run)(input)
     .then(() => {

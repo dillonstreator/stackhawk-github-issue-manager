@@ -223,7 +223,7 @@ type HawkScanApplicationScanAlertUri = {
   pluginId: string
   uri: string
   requestMethod: string
-  status: string // "UNKNOWN" | "RISK_ACCEPTED" | other unknown values that are not documented
+  status: 'UNKNOWN' | 'FALSE_POSITIVE' | 'RISK_ACCEPTED' | 'PROMOTED' // https://github.com/dillonstreator/stackhawk-github-issue-manager/issues/19
   matchedRuleNote: string // the note of the status
 }
 
